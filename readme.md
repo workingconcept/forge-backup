@@ -9,7 +9,7 @@ This is a shell script for establishing encrypted, efficient backups of your [La
 - Server provisioned with Laravel Forge running Ubuntu 18+.
 - Backblaze account.
 
-## What it Does
+## What It Does
 
 - Installs [restic](https://restic.net/), a free, secure, and efficient backup program.
 - Creates a read-only `backup` MySQL user for generating dumps.
