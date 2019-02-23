@@ -27,7 +27,7 @@ Run the installer **as root (not sudo!)** On its initial run, it will ask for B2
 
 ```
 sudo bash
-curl -O https://gitlab.com/workingconcept/forge-backup/raw/master/restic-setup.sh && chmod +x restic-setup.sh && ./restic-setup.sh
+curl -O https://raw.githubusercontent.com/workingconcept/forge-backup/master/restic-setup.sh && chmod +x restic-setup.sh && ./restic-setup.sh
 ```
 
 ## Scheduling
