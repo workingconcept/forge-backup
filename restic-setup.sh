@@ -18,7 +18,8 @@
 # 3. Run a mysql backup with mysql-backup.sh.
 # 4. Run a backup with restic-backup.sh.
 # 5. Use restic-mount.sh to mount and verify.
-# 6. Enable cron job for restic-backup.sh
+# 6. Add scheduler job: 
+#    `/root/restic/restic-backup.sh >/dev/null 2>&1`
 #
 ###############################################
 
@@ -224,14 +225,6 @@ chmod +x /root/restic/mysql-backup.sh
 chmod +x /root/restic/restic-backup.sh
 chmod +x /root/restic/restic-mount.sh
 
-# add a commented-out crontab line to enable later
-crontab -l > crontemp
-echo "" >> crontemp
-echo "# daily Restic server backup to B2" >> crontemp
-echo "# 0 3 * * * /root/restic/restic-backup.sh >/dev/null 2>&1" >> crontemp
-crontab crontemp
-rm crontemp
-
 # init backup
 # ```
 # source /root/restic/conf/b2.conf
@@ -254,7 +247,7 @@ echo "Looking good."
 echo "Don't forget to finish setting up restic!"
 echo ""
 echo "- [ ] run a backup"
-echo "- [ ] uncomment line in crontab"
 echo "- [ ] mount and verify backups"
+echo "- [ ] add scheduler job for /root/restic/restic-backup.sh"
 echo "----------------------------------------"
 
