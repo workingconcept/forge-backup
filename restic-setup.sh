@@ -14,7 +14,7 @@
 ###############################################
 #
 # 1. Create a B2 bucket and application key.
-# 2. Run this script as root.
+# 2. Run this script as root. (Not sudo.)
 # 3. Run a mysql backup with mysql-backup.sh.
 # 4. Run a backup with restic-backup.sh.
 # 5. Use restic-mount.sh to mount and verify.
@@ -30,9 +30,9 @@ echo "----------------------------------------"
 echo ""
 
 if [ ! -f /root/restic/conf/b2.conf ]; then
-    read -p "Enter B2 application key ID: " B2_ACCOUNT_ID
-    read -p "Enter B2 application key: " B2_ACCOUNT_KEY
-    read -p "Enter B2 bucket: " B2_BUCKET
+    read -s -p "Enter B2 application key ID: " B2_ACCOUNT_ID
+    read -s -p "Enter B2 application key: " B2_ACCOUNT_KEY
+    read -s -p "Enter B2 bucket: " B2_BUCKET
 fi
 
 # location for local backup data
@@ -75,7 +75,7 @@ echo ""
 
 # create or source backup user MySQL password
 if [ ! -f /root/restic/conf/mysql.conf ]; then
-    read -p "Enter MySQL password for 'forge': " ROOT_MYSQL_PASSWORD
+    read -s -p "Enter MySQL password for 'forge': " ROOT_MYSQL_PASSWORD
 
     # generate random 32 character alphanumeric string (upper and lowercase)
     MYSQL_PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
@@ -160,11 +160,12 @@ if [ $db != "performance_schema" ]&&[ $db != "mysql" ];then
     FILENAME=$BACKUP_DIR/mysql/$DATESTAMP/$db-$TIMESTAMP.gz
 
     echo -e "backing up '$db' → $FILENAME"
+
     # with GZIP
     $MYSQLDUMP --force --opt --user=$MYSQL_USER -p$MYSQL_PASSWORD --databases $db | gzip > "$FILENAME"
+
+    # let the forge user inspect backups
     chown forge:forge $FILENAME
-    # without GZIP
-    #$MYSQLDUMP --force --opt --user=$MYSQL_USER -p$MYSQL_PASSWORD --databases $db > "$FILENAME"
 fi
 done
 
@@ -174,10 +175,7 @@ echo "Pruning old backups..."
 echo "----------------------------------------"
 echo ""
 
-# prune files more than 15 days old
-# https://askubuntu.com/questions/589210/removing-files-older-than-7-days
-
-#find $BACKUP_DIR/mysql/ -type f -mtime +7 -name '*.gz' -execdir rm -- '{}' \;
+# prune files more than 7 days old
 find $BACKUP_DIR/mysql/ -mtime +7 -name '*.gz' -execdir rm -- '{}' \;
 
 echo "Done."
@@ -232,7 +230,7 @@ chmod +x /root/restic/restic-mount.sh
 # ```
 while true; do
     echo ""
-    read -p "Do you want to initialize the restic repo now? " yn
+    read -p "Do you want to initialize the restic repo now? [y/n] " yn
     echo ""
     case $yn in
         [Yy]* ) source /root/restic/conf/b2.conf && restic -r b2:$B2_BUCKET:/ init; break;;
@@ -243,11 +241,12 @@ done
 
 echo ""
 echo "----------------------------------------"
-echo "Looking good."
+echo "Looking good!"
 echo "Don't forget to finish setting up restic!"
 echo ""
-echo "- [ ] run a backup"
-echo "- [ ] mount and verify backups"
-echo "- [ ] add scheduler job for /root/restic/restic-backup.sh"
+echo "- [ ] run a MySQL backup with mysql-backup.sh"
+echo "- [ ] run a filesystem backup with restic-backup.sh"
+echo "- [ ] mount and verify backups with restic-mount.sh"
+echo "- [ ] add scheduler job for restic-backup.sh"
 echo "----------------------------------------"
 
