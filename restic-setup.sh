@@ -31,8 +31,11 @@ echo ""
 
 if [ ! -f /root/restic/conf/b2.conf ]; then
     read -s -p "Enter B2 application key ID: " B2_ACCOUNT_ID
+    echo ""
     read -s -p "Enter B2 application key: " B2_ACCOUNT_KEY
+    echo ""
     read -s -p "Enter B2 bucket: " B2_BUCKET
+    echo ""
 fi
 
 # location for local backup data
