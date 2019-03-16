@@ -1,6 +1,6 @@
 # Forge Backup
 
-This is a shell script for establishing encrypted, efficient backups of your [Laravel Forge](https://forge.laravel.com) server on cheap [Backblaze B2](https://www.backblaze.com/b2/cloud-storage.html) storage.
+This is a shell script for establishing encrypted, efficient backups of your [Laravel Forge](https://forge.laravel.com) server on cheap [Backblaze B2](https://www.backblaze.com/b2/cloud-storage.html) storage. For a more thorough overview, see my [Easy Forge Backups with Restic and Backblaze B2](https://workingconcept.com/blog/forge-backups-restic-backblaze-b2) blog post.
 
 **This is a free script with no support or warranty. You're responsible for whatever joy or sadness it brings you!**
 
