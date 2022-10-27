@@ -2,8 +2,8 @@
 
 ###############################################
 #
-# Forge → B2 Backup
-# Backs up all databases and /home/forge to
+# Forge (or Ploi) → B2 Backup
+# Backs up all databases and home directory to
 # Backblaze B2 using restic.
 #
 # by Matt Stein <matt@workingconcept.com>
@@ -23,9 +23,12 @@
 #
 ###############################################
 
+# Use `forge` or `ploi`
+SERVICE="forge"
+
 echo ""
 echo "----------------------------------------"
-echo "Forge → B2 Backup"
+echo "${SERVICE^} → B2 Backup"
 echo "----------------------------------------"
 echo ""
 
@@ -39,10 +42,10 @@ if [ ! -f /root/restic/conf/b2.conf ]; then
 fi
 
 # location for local backup data
-BACKUP_DIR="/home/forge/backup"
+BACKUP_DIR="/home/$SERVICE/backup"
 
 # location of files to back up
-BACKUP_TARGET="/home/forge"
+BACKUP_TARGET="/home/$SERVICE"
 
 # MySQL backup user (password will be generated)
 MYSQL_USER="backup"
@@ -63,11 +66,11 @@ if [ ! -d /root/restic ]; then
     echo "Creating /root/restic..."
     echo "----------------------------------------"
 
-    # create directories we'll need
+    # create directories we’ll need
     mkdir -p /root/restic
     mkdir -p /root/restic/conf
     mkdir -p $BACKUP_DIR
-    chown -R forge:forge $BACKUP_DIR
+    chown -R $SERVICE:$SERVICE $BACKUP_DIR
 fi
 
 echo ""
@@ -78,7 +81,7 @@ echo ""
 
 # create or source backup user MySQL password
 if [ ! -f /root/restic/conf/mysql.conf ]; then
-    read -s -p "Enter MySQL password for 'forge': " ROOT_MYSQL_PASSWORD
+    read -s -p "Enter MySQL password for '$SERVICE': " ROOT_MYSQL_PASSWORD
 
     # generate random 32 character alphanumeric string (upper and lowercase)
     MYSQL_PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
@@ -90,9 +93,9 @@ if [ ! -f /root/restic/conf/mysql.conf ]; then
     echo "export BACKUP_DIR=\"$BACKUP_DIR\"" >> /root/restic/conf/mysql.conf
 
     # create read-only mysql backup user and store credentials
-    $MYSQL --user="forge" --password="$ROOT_MYSQL_PASSWORD" --execute="CREATE USER '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';"
-    $MYSQL --user="forge" --password="$ROOT_MYSQL_PASSWORD" --execute="GRANT SELECT, LOCK TABLES ON *.* TO '${MYSQL_USER}'@'localhost';"
-    $MYSQL --user="forge" --password="$ROOT_MYSQL_PASSWORD" --execute="FLUSH PRIVILEGES;"
+    $MYSQL --user="$SERVICE" --password="$ROOT_MYSQL_PASSWORD" --execute="CREATE USER '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';"
+    $MYSQL --user="$SERVICE" --password="$ROOT_MYSQL_PASSWORD" --execute="GRANT SELECT, LOCK TABLES ON *.* TO '${MYSQL_USER}'@'localhost';"
+    $MYSQL --user="$SERVICE" --password="$ROOT_MYSQL_PASSWORD" --execute="FLUSH PRIVILEGES;"
 
     echo "!! created backup user with password: $MYSQL_PASSWORD"
 else
@@ -106,10 +109,11 @@ echo "Confirming restic repository..."
 echo "----------------------------------------"
 echo ""
 
-# write restic backup exclude file if one doesn't exist
+# write restic backup exclude file if one doesn’t exist
 if [ ! -f /root/restic/conf/excludes.conf ]; then
     touch /root/restic/conf/excludes.conf
     echo ".git/*" > /root/restic/conf/excludes.conf
+    echo ".cache/*" > /root/restic/conf/excludes.conf
     echo "created /root/restic/conf/excludes.conf"
 else
     echo "✓ found backup exclude file"
@@ -122,6 +126,7 @@ if [ ! -f /root/restic/conf/b2.conf ]; then
     echo "export B2_ACCOUNT_ID=\"$B2_ACCOUNT_ID\"" >> /root/restic/conf/b2.conf
     echo "export B2_ACCOUNT_KEY=\"$B2_ACCOUNT_KEY\"" >> /root/restic/conf/b2.conf
     echo "export B2_BUCKET=\"$B2_BUCKET\"" >> /root/restic/conf/b2.conf
+    echo "export BACKUP_TARGET=\"$BACKUP_TARGET\"" >> /root/restic/conf/b2.conf
     echo "wrote B2 settings"
 else
     echo "✓ found B2 settings"
@@ -156,7 +161,7 @@ TIMESTAMP=$(date +"%H%M%S")
 
 mkdir -p $BACKUP_DIR/mysql/$DATESTAMP
 
-databases=`$MYSQL --user="$MYSQL_USER" --password="$MYSQL_PASSWORD" --execute="SHOW DATABASES;" | grep -Ev "(Database|information_schema)"`
+databases=`$MYSQL --user="$MYSQL_USER" --password="$MYSQL_PASSWORD" --execute="SHOW DATABASES;" | grep -Ev "(Database|information_schema|performance_schema|mysql|sys)"`
 
 for db in $databases; do
 if [ $db != "performance_schema" ]&&[ $db != "mysql" ];then
@@ -165,10 +170,10 @@ if [ $db != "performance_schema" ]&&[ $db != "mysql" ];then
     echo -e "backing up '$db' → $FILENAME"
 
     # with GZIP
-    $MYSQLDUMP --force --opt --user=$MYSQL_USER -p$MYSQL_PASSWORD --databases $db | gzip > "$FILENAME"
+    $MYSQLDUMP --force --no-tablespaces --opt --user=$MYSQL_USER -p$MYSQL_PASSWORD --databases $db | gzip > "$FILENAME"
 
-    # let the forge user inspect backups
-    chown forge:forge $FILENAME
+    # let the forge or ploi user inspect backups
+    chown $SERVICE:$SERVICE $FILENAME
 fi
 done
 
@@ -201,7 +206,7 @@ echo ""
 # create a mysql backup
 /root/restic/mysql-backup.sh
 
-/usr/bin/restic -r b2:$B2_BUCKET:/ backup /home/forge --exclude-file=/root/restic/conf/excludes.conf --password-file=/root/restic/conf/password.conf
+/usr/bin/restic -r b2:$B2_BUCKET:/ backup $BACKUP_TARGET --exclude-file=/root/restic/conf/excludes.conf --password-file=/root/restic/conf/password.conf
 /usr/bin/restic -r b2:$B2_BUCKET:/ --password-file=/root/restic/conf/password.conf forget --keep-daily 7 --keep-weekly 4 --keep-monthly 12 --keep-yearly 2
 /usr/bin/restic -r b2:$B2_BUCKET:/ --password-file=/root/restic/conf/password.conf prune
 /usr/bin/restic -r b2:$B2_BUCKET:/ --password-file=/root/restic/conf/password.conf check
@@ -218,7 +223,7 @@ echo "----------------------------------------"
 mkdir /mnt/restic
 . /root/restic/conf/b2.conf
 restic -r b2:$B2_BUCKET mount /mnt/restic --password-file=/root/restic/conf/password.conf
-echo "Unmount with 'umount /mnt/restic' when you're done!"
+echo "Unmount with 'umount /mnt/restic' when you’re done!"
 EOL
 
 # make scripts executable
@@ -245,7 +250,7 @@ done
 echo ""
 echo "----------------------------------------"
 echo "Looking good!"
-echo "Don't forget to finish setting up restic!"
+echo "Don’t forget to finish setting up restic!"
 echo ""
 echo "- [ ] run a MySQL backup with mysql-backup.sh"
 echo "- [ ] run a filesystem backup with restic-backup.sh"
